@@ -16,10 +16,26 @@ const NotificationsScreen = ({ navigation }) => {
     {
       id: 2,
       title: 'Payment successful',
-      message: 'Your payment was processed',
+      message: 'Your payment of ₹2,500 was processed successfully',
       time: '1 hour ago',
       read: true,
       icon: 'card',
+    },
+    {
+      id: 3,
+      title: 'Account updated',
+      message: 'Your profile information has been updated',
+      time: '3 hours ago',
+      read: true,
+      icon: 'checkmark-circle',
+    },
+    {
+      id: 4,
+      title: 'New feature available',
+      message: 'Try our new budgeting tool in the app',
+      time: '1 day ago',
+      read: false,
+      icon: 'sparkles',
     },
   ]);
 
@@ -31,9 +47,13 @@ const NotificationsScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Notifications" navigation={navigation} />
+      <AppHeader title="Notifications" navigation={navigation} showBackButton={true} />
       
-      <ScrollView style={styles.scrollContainer}>
+      <ScrollView 
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <Text style={styles.sectionTitle}>RECENT</Text>
         {notifications.map((notification) => (
           <TouchableOpacity
             key={notification.id}
@@ -42,12 +62,15 @@ const NotificationsScreen = ({ navigation }) => {
               !notification.read && styles.unreadCard
             ]}
             onPress={() => markAsRead(notification.id)}
-            activeOpacity={0.9}
+            activeOpacity={0.8}
           >
-            <View style={styles.iconContainer}>
+            <View style={[
+              styles.iconContainer,
+              { backgroundColor: notification.read ? '#f0f0f0' : 'rgba(226, 19, 110, 0.1)' }
+            ]}>
               <Ionicons 
                 name={notification.icon} 
-                size={20} 
+                size={22} 
                 color={notification.read ? "#888" : "#e2136e"} 
               />
             </View>
@@ -68,10 +91,14 @@ const NotificationsScreen = ({ navigation }) => {
             </View>
             
             {!notification.read && (
-              <View style={styles.unreadDot} />
+              <View style={styles.unreadIndicator}>
+                <View style={styles.unreadDot} />
+              </View>
             )}
           </TouchableOpacity>
         ))}
+        
+        <View style={styles.bottomSpace} />
       </ScrollView>
     </View>
   );
@@ -84,34 +111,47 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flex: 1,
-    paddingHorizontal: 12,
+    width: '100%',
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
     paddingTop: 8,
+    paddingBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6c757d',
+    marginTop: 16,
+    marginBottom: 12,
+    marginLeft: 4,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   notificationCard: {
     flexDirection: 'row',
     backgroundColor: '#fff',
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    marginBottom: 8,
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    marginBottom: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   unreadCard: {
     borderLeftWidth: 3,
     borderLeftColor: '#e2136e',
   },
   iconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#f0f0f0',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 16,
     alignSelf: 'center',
   },
   contentContainer: {
@@ -119,31 +159,38 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '500',
     color: '#555',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   unreadTitle: {
     color: '#000',
     fontWeight: '600',
   },
   message: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#666',
-    marginBottom: 4,
+    marginBottom: 6,
+    lineHeight: 20,
   },
   time: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#999',
+    fontFamily: 'System',
+  },
+  unreadIndicator: {
+    justifyContent: 'center',
+    paddingLeft: 8,
   },
   unreadDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: '#e2136e',
-    alignSelf: 'center',
-    marginLeft: 8,
+  },
+  bottomSpace: {
+    height: 30,
   },
 });
 
