@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import AppHeader from '../components/AppHeader';
 
 const HomeScreen = ({ navigation }) => {
+  
   return (
     <View style={styles.container}>
       <AppHeader title="Home" navigation={navigation} />

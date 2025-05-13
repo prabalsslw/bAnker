@@ -11,6 +11,9 @@ import FdrScreen from '../screens/FdrScreen';
 import DpsScreen from '../screens/DpsScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import AuthNavigator from './AuthNavigator';
+import { useAuth } from '../auth/AuthContext';
+import { ActivityIndicator, View } from 'react-native';
 
 const Drawer = createDrawerNavigator();
 const Tab = createBottomTabNavigator();
@@ -29,25 +32,39 @@ const HomeTabs = () => {
 };
 
 const AppNavigator = () => {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#e2136e" />
+      </View>
+    );
+  }
+
   return (
     <NavigationContainer>
-      <Drawer.Navigator
-        drawerContent={props => <DrawerContent {...props} />}
-        screenOptions={{
-          headerShown: false,
-          drawerPosition: 'right',
-          drawerStyle: {
-            width: '80%',
-            marginTop: StatusBar.currentHeight,
-            backgroundColor: 'white',
-          },
-        }}
-      >
-        <Drawer.Screen name="HomeTabs" component={HomeTabs} />
-        <Drawer.Screen name="Savings" component={SavingsScreen} />
-        <Drawer.Screen name="FDR" component={FdrScreen} />
-        <Drawer.Screen name="DPS" component={DpsScreen} />
-      </Drawer.Navigator>
+      {user ? (
+        <Drawer.Navigator
+          drawerContent={props => <DrawerContent {...props} />}
+          screenOptions={{
+            headerShown: false,
+            drawerPosition: 'right',
+            drawerStyle: {
+              width: '80%',
+              marginTop: StatusBar.currentHeight,
+              backgroundColor: 'white',
+            },
+          }}
+        >
+          <Drawer.Screen name="HomeTabs" component={HomeTabs} />
+          <Drawer.Screen name="Savings" component={SavingsScreen} />
+          <Drawer.Screen name="FDR" component={FdrScreen} />
+          <Drawer.Screen name="DPS" component={DpsScreen} />
+        </Drawer.Navigator>
+      ) : (
+        <AuthNavigator />
+      )}
     </NavigationContainer>
   );
 };

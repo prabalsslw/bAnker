@@ -12,19 +12,19 @@
     "expo-status-bar": "~2.2.3",
     "react": "19.0.0",
     "react-native": "0.79.2",
+    "lokijs": "*",
     "@expo/vector-icons": "^14.1.0",
     "react-native-paper": "4.9.2",
-    "expo-linear-gradient": "~14.1.4",
     "react-native-screens": "~4.10.0",
-    "react-native-elements": "*",
     "@react-navigation/stack": "*",
     "react-native-reanimated": "~3.17.4",
     "@react-navigation/drawer": "*",
-    "@react-navigation/native": "*",
+    "@react-navigation/native": "7.1.9",
     "react-native-gesture-handler": "~2.24.0",
     "@react-navigation/bottom-tabs": "*",
-    "@react-navigation/native-stack": "*",
-    "react-native-safe-area-context": "5.4.0"
+    "react-native-safe-area-context": "5.4.0",
+    "@react-native-async-storage/async-storage": "2.1.2",
+    "react-native-toast-message": "*"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"
