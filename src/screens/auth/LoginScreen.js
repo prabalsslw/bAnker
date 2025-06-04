@@ -10,10 +10,12 @@ import {
   ScrollView,
   Dimensions,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import { validatePhone, validatePin } from '../../auth/validators';
 import { useAuth } from '../../auth/AuthContext';
 import bankerDB from '../../database/bankerdatabase';
+import * as LocalAuthentication from 'expo-local-authentication';
 
 const { height } = Dimensions.get('window');
 
@@ -21,8 +23,65 @@ const LoginScreen = ({ navigation, route }) => {
   const [formData, setFormData] = useState({ phone: '', pin: '' });
   const [errors, setErrors] = useState({ phone: '', pin: '', auth: '' });
   const [isLoading, setIsLoading] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [showBiometricOption, setShowBiometricOption] = useState(false);
+  const [showBiometricIcon, setShowBiometricIcon] = useState(false);
 
-  const { login } = useAuth();
+  const { login, lastLoggedInPhone } = useAuth();
+
+  // Pre-populate phone number if available
+  useEffect(() => {
+    console.log('Last logged in phone from context:', lastLoggedInPhone);
+    if (lastLoggedInPhone) {
+      console.log('Setting phone number in form:', lastLoggedInPhone);
+      setFormData(prev => ({ ...prev, phone: lastLoggedInPhone }));
+    }
+  }, [lastLoggedInPhone]);
+
+  // useEffect(() => {
+  //   const checkBiometric = async () => {
+  //     const hasHardware = await LocalAuthentication.hasHardwareAsync();
+  //     const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+  //     setBiometricAvailable(hasHardware && isEnrolled);
+  //   };
+  //   checkBiometric();
+  // }, []);
+  useEffect(() => {
+  const checkBiometricStatus = async () => {
+    if (formData.phone && formData.phone.length === 11) {
+      try {
+        // 1. Check if user exists with this phone
+        const user = await bankerDB.getUserByPhone(formData.phone);
+        
+        // 2. Verify if biometric is enabled for this user
+        if (user?.biometric_enabled) {
+          // 3. Check device biometric capability
+          const hasHardware = await LocalAuthentication.hasHardwareAsync();
+          const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+          
+          setShowBiometricIcon(hasHardware && isEnrolled);
+        } else {
+          setShowBiometricIcon(false);
+        }
+      } catch (error) {
+        console.error('Biometric check error:', error);
+        setShowBiometricIcon(false);
+      }
+    } else {
+      setShowBiometricIcon(false);
+    }
+  };
+
+  checkBiometricStatus();
+}, [formData.phone]);
+
+  useEffect(() => {
+    if (formData.phone && formData.phone.length === 11) {
+      checkUserBiometricStatus();
+    } else {
+      setShowBiometricOption(false);
+    }
+  }, [formData.phone]);
 
   useEffect(() => {
     if (route.params?.success) {
@@ -68,40 +127,69 @@ const LoginScreen = ({ navigation, route }) => {
   };
 
   const handleLogin = async () => {
-  if (!validateForm()) return;
+    if (!validateForm()) return;
 
-  setIsLoading(true);
+    setIsLoading(true);
 
-  try {
-    console.log('Starting verification for:', formData.phone);
-    const isValid = await bankerDB.verifyUser(formData.phone, formData.pin);
-    console.log('Verification result:', isValid);
-    
-    if (isValid) {
-      console.log('Fetching user details...');
-      const user = await bankerDB.getUserByPhone(formData.phone);
-      console.log('User fetched:', user);
+    try {
+      const isValid = await bankerDB.verifyUser(formData.phone, formData.pin);
       
-      login(user);
+      if (isValid) {
+        const user = await bankerDB.getUserByPhone(formData.phone);
+        login(user);
 
-      Toast.show({
-        type: 'success',
-        text1: 'Login successful!',
-        position: 'bottom',
-        visibilityTime: 1000,
-      });
-      
-    } else {
-      console.log('Verification failed');
-      setErrors({ ...errors, auth: 'Invalid phone or PIN' });
+        Toast.show({
+          type: 'success',
+          text1: 'Login successful!',
+          position: 'bottom',
+          visibilityTime: 1000,
+        });
+      } else {
+        setErrors({ ...errors, auth: 'Invalid phone or PIN' });
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setErrors({ ...errors, auth: 'Login failed. Please try again.' });
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error) {
-    console.error('Login error:', error);
-    setErrors({ ...errors, auth: 'Login failed. Please try again.' });
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
+
+  const checkUserBiometricStatus = async () => {
+    try {
+      const user = await bankerDB.getUserByPhone(formData.phone);
+      setShowBiometricOption(user?.biometric_enabled && biometricAvailable);
+    } catch (error) {
+      console.error('Biometric check error:', error);
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Authenticate to login',
+      });
+
+      if (result.success) {
+        const user = await bankerDB.getUserByPhone(formData.phone);
+        if (user) {
+          login(user);
+          Toast.show({
+            type: 'success',
+            text1: 'Login successful!',
+            position: 'bottom',
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Biometric login error:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Biometric authentication failed',
+        position: 'bottom',
+      });
+    }
+  };
 
   return (
     <KeyboardAvoidingView
@@ -128,22 +216,40 @@ const LoginScreen = ({ navigation, route }) => {
                 keyboardType="phone-pad"
                 maxLength={11}
                 value={formData.phone}
-                onChangeText={(text) => handleChange('phone', text)}
+                // onChangeText={(text) => handleChange('phone', text)}
+                onChangeText={(text) => {
+    console.log('Phone input changed:', text);
+    handleChange('phone', text);
+  }}
               />
               {errors.phone ? <Text style={styles.errorMessage}>{errors.phone}</Text> : null}
             </View>
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>PIN</Text>
-              <TextInput
-                style={[styles.input, (errors.pin || errors.auth) && styles.errorInput]}
-                placeholder="4-digit PIN"
-                keyboardType="numeric"
-                secureTextEntry
-                maxLength={4}
-                value={formData.pin}
-                onChangeText={(text) => handleChange('pin', text)}
-              />
+              <View style={styles.pinInputContainer}>
+                <TextInput
+                  style={[
+                    styles.pinInput, 
+                    (errors.pin || errors.auth) && styles.errorInput,
+                    showBiometricIcon && { paddingRight: 40 } // Add padding for icon
+                  ]}
+                  placeholder="4-digit PIN"
+                  keyboardType="numeric"
+                  secureTextEntry
+                  maxLength={4}
+                  value={formData.pin}
+                  onChangeText={(text) => handleChange('pin', text)}
+                />
+                {showBiometricIcon && (
+                  <TouchableOpacity 
+                    style={styles.biometricIcon}
+                    onPress={handleBiometricLogin}
+                  >
+                    <Ionicons name="finger-print" size={24} color="#e2136e" />
+                  </TouchableOpacity>
+                )}
+              </View>
               {errors.pin ? <Text style={styles.errorMessage}>{errors.pin}</Text> : null}
               {errors.auth ? (
                 <Text style={[styles.errorMessage, { marginTop: 8 }]}>
@@ -228,6 +334,23 @@ const styles = StyleSheet.create({
     padding: 14,
     fontSize: 16,
     backgroundColor: '#f9f9f9',
+  },
+  pinInputContainer: {
+    position: 'relative',
+  },
+  pinInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 14,
+    fontSize: 16,
+    backgroundColor: '#f9f9f9',
+    width: '100%',
+  },
+  biometricIcon: {
+    position: 'absolute',
+    right: 12,
+    top: 12,
   },
   errorInput: {
     borderColor: '#ff4d4f',

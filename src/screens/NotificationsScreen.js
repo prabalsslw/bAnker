@@ -1,105 +1,190 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import AppHeader from '../components/AppHeader';
+import { useAuth } from '../auth/AuthContext';
+import bankerDB from '../database/bankerdatabase';
+import Toast from 'react-native-toast-message';
+import moment from 'moment';
 
 const NotificationsScreen = ({ navigation }) => {
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      title: 'New message received',
-      message: 'You have a new message from John Doe',
-      time: '2 mins ago',
-      read: false,
-      icon: 'chatbubble-ellipses',
-    },
-    {
-      id: 2,
-      title: 'Payment successful',
-      message: 'Your payment of ₹2,500 was processed successfully',
-      time: '1 hour ago',
-      read: true,
-      icon: 'card',
-    },
-    {
-      id: 3,
-      title: 'Account updated',
-      message: 'Your profile information has been updated',
-      time: '3 hours ago',
-      read: true,
-      icon: 'checkmark-circle',
-    },
-    {
-      id: 4,
-      title: 'New feature available',
-      message: 'Try our new budgeting tool in the app',
-      time: '1 day ago',
-      read: false,
-      icon: 'sparkles',
-    },
-  ]);
+  const { user } = useAuth();
+  const [notifications, setNotifications] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  const markAsRead = (id) => {
-    setNotifications(notifications.map(notification => 
-      notification.id === id ? { ...notification, read: true } : notification
-    ));
+  const notificationIcons = {
+    savings: 'wallet',
+    payment: 'card',
+    profile: 'person',
+    security: 'lock-closed',
+    system: 'notifications',
+    login: 'log-in',
+    logout: 'log-out',
+    maturity: 'calendar',
+    reminder: 'alarm'
+  };
+
+  const loadNotifications = async () => {
+    try {
+      if (!user?.id) return;
+      
+      const data = await bankerDB.getNotifications(user.id);
+      const count = await bankerDB.getUnreadNotificationCount(user.id);
+      console.log(count);
+      
+      setNotifications(data);
+      setUnreadCount(count);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to load notifications',
+        position: 'bottom',
+      });
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadNotifications();
+    setRefreshing(false);
+  };
+
+  useEffect(() => {
+    loadNotifications();
+  }, [user]);
+
+  const markAsRead = async (id) => {
+    try {
+      await bankerDB.markNotificationAsRead(id);
+      setNotifications(notifications.map(n => 
+        n.id === id ? { ...n, is_read: 1 } : n
+      ));
+      setUnreadCount(Math.max(0, unreadCount - 1));
+    } catch (error) {
+      console.error('Error marking as read:', error);
+    }
+  };
+
+  const getNotificationIcon = (type) => {
+    return notificationIcons[type] || 'notifications';
+  };
+
+  const getTimeAgo = (timestamp) => {
+    // Force parsing as UTC and convert to local time
+    const date = moment.utc(timestamp, 'YYYY-MM-DD HH:mm:ss').local();
+    return date.fromNow();
+  };
+
+  const clearAllNotifications = async () => {
+    try {
+      await bankerDB.db.runAsync(
+        `UPDATE notifications SET is_read = 1 WHERE user_id = ?`,
+        [user.id]
+      );
+      setNotifications(notifications.map(n => ({ ...n, is_read: 1 })));
+      setUnreadCount(0);
+      Toast.show({
+        type: 'success',
+        text1: 'All notifications marked as read',
+        position: 'bottom',
+      });
+    } catch (error) {
+      console.error('Error clearing notifications:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to clear notifications',
+        position: 'bottom',
+      });
+    }
   };
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Notifications" navigation={navigation} showBackButton={true} />
+      <AppHeader 
+        title={`Notifications ${unreadCount > 0 ? `(${unreadCount})` : ''}`}
+        navigation={navigation}
+        showBack={false}
+      />
       
-      <ScrollView 
-        style={styles.scrollContainer}
-        contentContainerStyle={styles.scrollContent}
-      >
-        <Text style={styles.sectionTitle}>RECENT</Text>
-        {notifications.map((notification) => (
-          <TouchableOpacity
-            key={notification.id}
-            style={[
-              styles.notificationCard,
-              !notification.read && styles.unreadCard
-            ]}
-            onPress={() => markAsRead(notification.id)}
-            activeOpacity={0.8}
-          >
-            <View style={[
-              styles.iconContainer,
-              { backgroundColor: notification.read ? '#f0f0f0' : 'rgba(226, 19, 110, 0.1)' }
-            ]}>
-              <Ionicons 
-                name={notification.icon} 
-                size={22} 
-                color={notification.read ? "#888" : "#e2136e"} 
-              />
-            </View>
-            
-            <View style={styles.contentContainer}>
-              <Text style={[
-                styles.title,
-                !notification.read && styles.unreadTitle
-              ]}>
-                {notification.title}
-              </Text>
-              <Text style={styles.message}>
-                {notification.message}
-              </Text>
-              <Text style={styles.time}>
-                {notification.time}
-              </Text>
-            </View>
-            
-            {!notification.read && (
-              <View style={styles.unreadIndicator}>
-                <View style={styles.unreadDot} />
-              </View>
+      {notifications.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="notifications-off" size={48} color="#ccc" />
+          <Text style={styles.emptyText}>No notifications yet</Text>
+        </View>
+      ) : (
+        <ScrollView 
+          style={styles.scrollContainer}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#e2136e']}
+              tintColor="#e2136e"
+            />
+          }
+        >
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>RECENT ACTIVITIES</Text>
+            {unreadCount > 0 && (
+              <TouchableOpacity 
+                onPress={clearAllNotifications}
+                style={styles.clearIcon}
+              >
+                <MaterialIcons name="delete-sweep" size={24} color="#666" />
+              </TouchableOpacity>
             )}
-          </TouchableOpacity>
-        ))}
-        
-        <View style={styles.bottomSpace} />
-      </ScrollView>
+          </View>
+          
+          {notifications.map((notification) => (
+            <TouchableOpacity
+              key={notification.id}
+              style={[
+                styles.notificationCard,
+                !notification.is_read && styles.unreadCard
+              ]}
+              onPress={() => markAsRead(notification.id)}
+              activeOpacity={0.8}
+            >
+              <View style={[
+                  styles.iconContainer,
+                  { backgroundColor: notification.is_read ? '#f0f0f0' : 'rgba(226, 19, 110, 0.1)' }
+                ]}>
+                  <Ionicons 
+                    name={getNotificationIcon(notification.type)} 
+                    size={22} 
+                    color={notification.is_read ? "#888" : "#e2136e"} 
+                  />
+                </View>
+                
+                <View style={styles.contentContainer}>
+                  <Text style={[
+                    styles.title,
+                    !notification.is_read && styles.unreadTitle
+                  ]}>
+                    {notification.title}
+                  </Text>
+                  <Text style={styles.message}>
+                    {notification.message}
+                  </Text>
+                  <Text style={styles.time}>
+                    {getTimeAgo(notification.created_at)}
+                  </Text>
+                </View>
+                
+                {!notification.is_read && (
+                  <View style={styles.unreadIndicator}>
+                    <View style={styles.unreadDot} />
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))}
+          
+          <View style={styles.bottomSpace} />
+        </ScrollView>
+      )}
     </View>
   );
 };
@@ -118,12 +203,27 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 20,
   },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  emptyText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#999',
+  },
   sectionTitle: {
     fontSize: 12,
     fontWeight: '600',
     color: '#6c757d',
-    marginTop: 16,
-    marginBottom: 12,
+    marginTop: 12,
+    marginBottom: 16,
     marginLeft: 4,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
@@ -190,7 +290,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#e2136e',
   },
   bottomSpace: {
-    height: 30,
+    height: 10,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    // borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  clearIcon: {
+    padding: 5,
+    color: '#e2136e',
   },
 });
 

@@ -69,6 +69,7 @@ class BankerDatabase {
           phone TEXT NOT NULL UNIQUE,
           email TEXT NOT NULL,
           pin TEXT NOT NULL,
+          biometric_enabled INTEGER DEFAULT 0,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
       `);
@@ -106,6 +107,21 @@ class BankerDatabase {
         );
       `);
 
+      console.log("Creating notification table...")
+      await this.db.execAsync(`
+        CREATE TABLE IF NOT EXISTS notifications (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          type TEXT NOT NULL,
+          title TEXT NOT NULL,
+          message TEXT NOT NULL,
+          related_id TEXT,
+          is_read INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES user_tbl(id)
+        );
+      `);
+
       console.log('Tables created successfully');
     } catch (error) {
       console.error('Error creating tables:', error);
@@ -113,12 +129,12 @@ class BankerDatabase {
     }
   }
 
-  async addUser(name, phone, email, pin) {
+  async addUser(name, phone, email, pin, biometric_enabled) {
     try {
       console.log('Adding new user:', { name, phone, email });
       const result = await this.db.runAsync(
-        `INSERT INTO ${this.userTable} (name, phone, email, pin) VALUES (?, ?, ?, ?)`,
-        [name, phone, email, pin.toString()]
+        `INSERT INTO ${this.userTable} (name, phone, email, pin, biometric_enabled) VALUES (?, ?, ?, ?, ?)`,
+        [name, phone, email, pin.toString(), biometric_enabled]
       );
       console.log('User added successfully:', result);
       return result;
@@ -192,11 +208,57 @@ class BankerDatabase {
     }
   }
 
+  async enableUserBiometric(userId) {
+  try {
+    await this.db.runAsync(
+      'UPDATE user_tbl SET biometric_enabled = 1 WHERE id = ?',
+      [userId]
+    );
+    return true;
+  } catch (error) {
+    console.error('Error enabling biometric:', error);
+    throw error;
+  }
+}
+
+async getUserBiometricStatus(userId) {
+  try {
+    console.log(`Fetching biometric status for user ${userId}`);
+    const result = await this.db.getFirstAsync(
+      `SELECT biometric_enabled FROM ${this.userTable} WHERE id = ?`,
+      [userId]
+    );
+    console.log(`Raw result from DB:`, result);
+    const status = result?.biometric_enabled === 1;
+    console.log(`Interpreted status: ${status}`);
+    return status;
+  } catch (error) {
+    console.error('Error in getUserBiometricStatus:', error);
+    throw error;
+  }
+}
+
+async disableUserBiometric(userId) {
+  try {
+    await this.db.runAsync(
+      'UPDATE user_tbl SET biometric_enabled = 0 WHERE id = ?',
+      [userId]
+    );
+    return true;
+  } catch (error) {
+    console.error('Error disabling biometric:', error);
+    throw error;
+  }
+}
+
   async dropUserTable() {
     try {
+      if (!this.db) {
+        await this.init(); // Make sure you have this initialization function
+      }
       console.log('Dropping user_tbl...');
       // await this.db.execAsync(`DROP TABLE IF EXISTS ${this.userTable};`);
-      await this.db.execAsync(`DROP TABLE IF EXISTS payment_tbl;`);
+      await this.db.execAsync(`DROP TABLE IF EXISTS user_tbl;`);
       console.log('user_tbl dropped successfully');
     } catch (error) {
       console.error('Error dropping user_tbl:', error);
@@ -402,6 +464,125 @@ async deleteSavingsAndPayments(savingsId) {
     console.error('Error deleting savings and payments:', error);
     throw error;
   }
+}
+
+async updateUserProfile(userId, updates) {
+  try {
+    const { name, email } = updates;
+    await this.db.runAsync(
+      `UPDATE ${this.userTable} SET name = ?, email = ? WHERE id = ?`,
+      [name, email, userId]
+    );
+    return true;
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    throw error;
+  }
+}
+
+async verifyUserPin(userId, pin) {
+  try {
+    const user = await this.db.getAllAsync(
+      `SELECT pin FROM ${this.userTable} WHERE id = ? LIMIT 1`,
+      [userId]
+    );
+    if (user.length === 0) return false;
+    return user[0].pin.toString() === pin.toString();
+  } catch (error) {
+    console.error('Error verifying user pin:', error);
+    throw error;
+  }
+}
+
+async changeUserPin(userId, newPin) {
+  try {
+    await this.db.runAsync(
+      `UPDATE ${this.userTable} SET pin = ? WHERE id = ?`,
+      [newPin.toString(), userId]
+    );
+    return true;
+  } catch (error) {
+    console.error('Error changing user pin:', error);
+    throw error;
+  }
+}
+
+// Notification methods
+async createNotification(userId, notificationData) {
+  try {
+    const { type, title, message, related_id } = notificationData;
+    await this.db.runAsync(
+      `INSERT INTO notifications 
+      (user_id, type, title, message, related_id) 
+      VALUES (?, ?, ?, ?, ?)`,
+      [userId, type, title, message, related_id || null]
+    );
+    return true;
+  } catch (error) {
+    console.error('Error creating notification:', error);
+    throw error;
+  }
+}
+
+async getNotifications(userId, limit = 50) {
+  try {
+    return await this.db.getAllAsync(
+      `SELECT * FROM notifications 
+       WHERE user_id = ? 
+       ORDER BY created_at DESC 
+       LIMIT ?`,
+      [userId, limit]
+    );
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    throw error;
+  }
+}
+
+async markNotificationAsRead(notificationId) {
+  try {
+    await this.db.runAsync(
+      `UPDATE notifications SET is_read = 1 WHERE id = ?`,
+      [notificationId]
+    );
+    return true;
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    throw error;
+  }
+}
+
+async getUnreadNotificationCount(userId) {
+  try {
+    const result = await this.getFirstAsync(
+      `SELECT COUNT(*) as count FROM notifications 
+       WHERE user_id = ? AND is_read = 0`,
+      [userId]
+    );
+    return result?.count || 0;
+  } catch (error) {
+    console.error('Error getting unread count:', error);
+    return 0;
+  }
+}
+
+async clearAllNotifications(userId) {
+  try {
+    await this.db.runAsync(
+      `UPDATE notifications SET is_read = 1 WHERE user_id = ?`,
+      [userId]
+    );
+    return true;
+  } catch (error) {
+    console.error('Error clearing notifications:', error);
+    throw error;
+  }
+}
+
+// Add this helper method if not already present
+async getFirstAsync(sql, params = []) {
+  const results = await this.db.getAllAsync(sql, params);
+  return results[0] || null;
 }
 
 }

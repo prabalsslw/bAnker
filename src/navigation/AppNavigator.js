@@ -11,9 +11,15 @@ import HomeScreen from '../screens/HomeScreen';
 import SavingsScreen from '../screens/SavingsScreen';
 import FdrScreen from '../screens/FdrScreen';
 import DpsScreen from '../screens/DpsScreen';
+import ExpenseScreen from '../screens/ExpenseScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import PaymentDetailsScreen from '../screens/PaymentDetailsScreen';
+import AccountSettings from '../screens/AccountSettings';
+import SecurityScreen from '../screens/SecurityScreen';
+import DataBackupScreen from '../screens/DataBackupScreen';
+import AboutScreen from '../screens/AboutScreen';
+import HelpAndSupportScreen from '../screens/HelpAndSupportScreen';
 import AuthNavigator from './AuthNavigator';
 import { useAuth } from '../auth/AuthContext';
 
@@ -29,7 +35,7 @@ const HomeTabs = () => {
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Notifications" component={NotificationsScreen} />
-      <Tab.Screen name="Settings" component={SettingsScreen} />
+      <Tab.Screen name="Settings" component={SettingsStack} />
     </Tab.Navigator>
   );
 };
@@ -39,6 +45,19 @@ const SavingsStack = () => {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="SavingsMain" component={SavingsScreen} />
       <Stack.Screen name="PaymentDetails" component={PaymentDetailsScreen} />
+    </Stack.Navigator>
+  );
+};
+
+const SettingsStack = () => {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="SettingsMain" component={SettingsScreen} />
+      <Stack.Screen name="AccountSettings" component={AccountSettings}/>
+      <Stack.Screen name="DataBackup" component={DataBackupScreen} />
+      <Stack.Screen name="Security" component={SecurityScreen} />
+      <Stack.Screen name="AboutApp" component={AboutScreen} />
+      <Stack.Screen name="HelpSupport" component={HelpAndSupportScreen} />
     </Stack.Navigator>
   );
 };
@@ -73,6 +92,7 @@ console.log("🧭 AppNavigator user:", user);
           <Drawer.Screen name="Savings" component={SavingsStack} />
           <Drawer.Screen name="FDR" component={FdrScreen} />
           <Drawer.Screen name="DPS" component={DpsScreen} />
+          <Drawer.Screen name="Expense" component={ExpenseScreen} />
         </Drawer.Navigator>
       ) : (
         <AuthNavigator />

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput } from 'r
 import AppHeader from '../components/AppHeader';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import bankerDB from '../database/bankerdatabase';
+import { useAuth } from '../auth/AuthContext';
 
 const PaymentDetailsScreen = ({ route, navigation }) => {
   const { savingsId, matureDate } = route.params;
@@ -10,6 +11,7 @@ const PaymentDetailsScreen = ({ route, navigation }) => {
   const [editingPayment, setEditingPayment] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [dateField, setDateField] = useState('');
+  const { user } = useAuth();
 
   useEffect(() => {
     loadPayments();
@@ -62,6 +64,13 @@ const PaymentDetailsScreen = ({ route, navigation }) => {
       });
       loadPayments();
       setEditingPayment(null);
+
+      await bankerDB.createNotification(user.id, {
+        type: 'payment',
+        title: 'Payment Processed',
+        message: `Payment of ${editingPayment.interest_amount} Tk has been received`,
+        related_id: editingPayment.id
+      });
     } catch (error) {
       console.error('Error updating payment:', error);
     }
@@ -325,29 +334,6 @@ const styles = StyleSheet.create({
   buttonText: {
     color: 'white',
     fontWeight: 'bold',
-  },
-  totalContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: 'white',
-    padding: 15,
-    borderRadius: 8,
-    marginTop: 'auto',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  totalLabel: {
-    fontWeight: 'bold',
-    color: '#e2136e',
-    fontSize: 16,
-  },
-  totalAmount: {
-    fontWeight: 'bold',
-    color: '#e2136e',
-    fontSize: 16,
   },
 });
 

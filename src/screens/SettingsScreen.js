@@ -1,25 +1,173 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch } from 'react-native';
 import { MaterialIcons, Ionicons, Feather } from '@expo/vector-icons';
+import * as LocalAuthentication from 'expo-local-authentication';
+import { useAuth } from '../auth/AuthContext';
+import bankerDB from '../database/bankerdatabase';
 import AppHeader from '../components/AppHeader';
+import Toast from 'react-native-toast-message';
 
 const SettingsScreen = ({ navigation }) => {
+  const { user } = useAuth();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
-  const [biometricEnabled, setBiometricEnabled] = useState(true);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+
+  // Check biometric availability on mount
+   useEffect(() => {
+    const checkBiometrics = async () => {
+      await checkBiometricSupport();
+      await checkBiometricStatus();
+    };
+    checkBiometrics();
+  }, [user]); // Add user as dependency
+
+  // const checkBiometricSupport = async () => {
+  //   const hasHardware = await LocalAuthentication.hasHardwareAsync();
+  //   const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+  //   setBiometricAvailable(hasHardware && isEnrolled);
+  // };
+
+  const checkBiometricSupport = async () => {
+    try {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      setBiometricAvailable(hasHardware && isEnrolled);
+    } catch (error) {
+      console.error('Error checking biometric support:', error);
+      setBiometricAvailable(false);
+    }
+  };
+
+  // const checkBiometricStatus = async () => {
+  //   if (user?.id) {
+  //     const status = await bankerDB.getUserBiometricStatus(user.id);
+  //     setBiometricEnabled(status);
+  //   }
+  // };
+
+  // const checkBiometricStatus = async () => {
+  //   try {
+  //     if (user?.id) {
+  //       const status = await bankerDB.getUserBiometricStatus(user.id);
+  //       console.log('Biometric status from DB:', status); // Debug log
+  //       setBiometricEnabled(!!status); // Ensure boolean value
+  //     }
+  //   } catch (error) {
+  //     console.error('Error checking biometric status:', error);
+  //     setBiometricEnabled(false);
+  //   }
+  // };
+
+  const checkBiometricStatus = async () => {
+  try {
+    if (user?.id) {
+      const status = await bankerDB.getUserBiometricStatus(user.id);
+      console.log('Biometric status from DB:', status);
+      setBiometricEnabled(status);
+    }
+  } catch (error) {
+    console.error('Error checking biometric status:', error);
+    setBiometricEnabled(false);
+    Toast.show({
+      type: 'error',
+      text1: 'Failed to check biometric status',
+      position: 'bottom',
+    });
+  }
+};
+
+  // const handleBiometricToggle = async (value) => {
+  //   if (value) {
+  //     // Enable biometric
+  //     try {
+  //       const result = await LocalAuthentication.authenticateAsync({
+  //         promptMessage: 'Authenticate to enable biometric login',
+  //       });
+
+  //       if (result.success) {
+  //         await bankerDB.enableUserBiometric(user.id);
+  //         setBiometricEnabled(true);
+  //         Toast.show({
+  //           type: 'success',
+  //           text1: 'Biometric login enabled',
+  //           position: 'bottom',
+  //         });
+  //       }
+  //     } catch (error) {
+  //       console.error('Biometric enable error:', error);
+  //       Toast.show({
+  //         type: 'error',
+  //         text1: 'Failed to enable biometric',
+  //         text2: error.message,
+  //         position: 'bottom',
+  //       });
+  //     }
+  //   } else {
+  //     // Disable biometric
+  //     await bankerDB.disableUserBiometric(user.id);
+  //     setBiometricEnabled(false);
+  //   }
+  // };
+
+  const handleBiometricToggle = async (value) => {
+    if (!user?.id) return;
+    
+    try {
+      if (value) {
+        // Enable biometric
+        const result = await LocalAuthentication.authenticateAsync({
+          promptMessage: 'Authenticate to enable biometric login',
+        });
+
+        if (result.success) {
+          await bankerDB.enableUserBiometric(user.id);
+          setBiometricEnabled(true);
+          Toast.show({
+            type: 'success',
+            text1: 'Biometric login enabled',
+            position: 'bottom',
+          });
+        } else {
+          // Authentication failed, keep switch off
+          setBiometricEnabled(false);
+        }
+      } else {
+        // Disable biometric
+        await bankerDB.disableUserBiometric(user.id);
+        setBiometricEnabled(false);
+        Toast.show({
+          type: 'success',
+          text1: 'Biometric login disabled',
+          position: 'bottom',
+        });
+      }
+    } catch (error) {
+      console.error('Biometric toggle error:', error);
+      setBiometricEnabled(!value); // Revert switch state
+      Toast.show({
+        type: 'error',
+        text1: 'Biometric operation failed',
+        text2: error.message,
+        position: 'bottom',
+      });
+    }
+  };
+
 
   const settingsOptions = [
     {
       id: 1,
       title: 'Account Settings',
       icon: <MaterialIcons name="account-circle" size={24} color="#e2136e" />,
-      action: () => navigation.navigate('AccountSettings')
+      action: () => navigation.navigate('AccountSettings') // Make sure this matches your route name
     },
     {
       id: 2,
       title: 'Security',
       icon: <Ionicons name="shield-checkmark" size={24} color="#e2136e" />,
-      action: () => navigation.navigate('SecuritySettings')
+      action: () => navigation.navigate('Security')
     },
     {
       id: 3,
@@ -60,13 +208,15 @@ const SettingsScreen = ({ navigation }) => {
       title: 'Biometric Login',
       icon: <Ionicons name="finger-print" size={24} color="#e2136e" />,
       action: null,
-      toggle: (
+      toggle: biometricAvailable ? (
         <Switch
           value={biometricEnabled}
-          onValueChange={setBiometricEnabled}
+          onValueChange={handleBiometricToggle}
           thumbColor="#fff"
           trackColor={{ false: '#767577', true: '#e2136e' }}
         />
+      ) : (
+        <Text style={styles.unavailableText}>Not Available</Text>
       )
     },
     {
@@ -213,6 +363,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#212529',
     fontWeight: '500',
+  },
+  unavailableText: {
+    color: '#999',
+    fontSize: 12,
+    marginRight: 8,
   },
 });
 

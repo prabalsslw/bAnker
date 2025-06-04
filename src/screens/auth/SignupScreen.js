@@ -102,19 +102,9 @@ const SignupScreen = ({ navigation }) => {
         formData.name,
         formData.phone,
         formData.email,
-        formData.pin
+        formData.pin,
+        0
       );
-
-      // Alert.alert(
-      //   'User Info Submitted',
-      //   `Name: ${formData.name}\nPhone: ${formData.phone}\nEmail: ${formData.email}`,
-      //   [
-      //     {
-      //       text: 'OK',
-      //       onPress: () => navigation.replace('Login'),
-      //     },
-      //   ]
-      // );
 
       Toast.show({
         type: 'success',

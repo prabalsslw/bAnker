@@ -152,6 +152,13 @@ const SavingsScreen = ({ navigation }) => {
       // Generate payment records
       await bankerDB.generatePayments(savingsResult);
 
+      await bankerDB.createNotification(user.id, {
+        type: 'savings',
+        title: 'New Savings Created',
+        message: `Your savings account ${newSavings.savingsId} has been created`,
+        related_id: newSavings.savingsId
+      });
+
       // Reset form and reload data
       setNewSavings({
         savingsId: '',
@@ -203,6 +210,13 @@ const SavingsScreen = ({ navigation }) => {
         status: editingSavings.status
       });
 
+      await bankerDB.createNotification(user.id, {
+        type: 'savings',
+        title: 'Savings Updated',
+        message: `Your savings account ${editingSavings.savingsId} has been updated`,
+        related_id: editingSavings.savingsId
+      });
+
       // Update related payments if interest rate changed
       await bankerDB.updatePaymentsForSavings({
         savingsId: editingSavings.savingsId,
@@ -243,6 +257,13 @@ const SavingsScreen = ({ navigation }) => {
 
     // Delete the savings and associated payments
     await bankerDB.deleteSavingsAndPayments(savingsToDelete.id);
+
+    await bankerDB.createNotification(user.id, {
+        type: 'savings',
+        title: 'Savings Deleted',
+        message: `Your savings & savings and associated payments has been deleted`,
+        related_id: savingsToDelete.id
+      });
     
     showToast('success', 'Savings and associated payments deleted successfully');
     setIsDeleteModalVisible(false);
@@ -256,8 +277,11 @@ const SavingsScreen = ({ navigation }) => {
 };
 
   const calculateTotal = () => {
-    return savingsList.reduce((total, item) => total + item.amount, 0);
+    return savingsList
+      .filter(item => item.status === 'Active')
+      .reduce((total, item) => total + item.amount, 0);
   };
+
 
   const animateButton = () => {
   Animated.sequence([
@@ -359,13 +383,14 @@ const SavingsScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Savings" navigation={navigation} showBack />
+      <AppHeader title="Savings Management" navigation={navigation} showBack />
       
       <View style={styles.content}>
         {/* Grand Total at Top */}
+
           {savingsList.length > 0 && (
             <View style={styles.totalContainerTop}>
-              <Text style={styles.totalLabel}>Grand Total:</Text>
+              <Text style={styles.totalLabel}>Total Active Savings Amount:</Text>
               <Text style={styles.totalAmount}>{calculateTotal().toFixed(2)} Tk</Text>
             </View>
           )}

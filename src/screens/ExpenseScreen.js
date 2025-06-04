@@ -1,24 +1,24 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import AppHeader from '../components/AppHeader';
-import { AntDesign } from '@expo/vector-icons'; // Changed to match drawer icon
+import { MaterialIcons } from '@expo/vector-icons'; // Matches drawer icon
 
-const FdrScreen = ({ navigation }) => {
+const ExpenseScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
-      <AppHeader title="FDR Management" navigation={navigation} showBack />
+      <AppHeader title="Expense Tracker" navigation={navigation} showBack />
       <View style={styles.content}>
         <View style={styles.comingSoonContainer}>
-          <AntDesign name="linechart" size={60} color="#2ecc71" style={styles.icon} />
+          <MaterialIcons name="analytics" size={60} color="#f39c12" style={styles.icon} />
           <Text style={styles.title}>Feature Coming Soon</Text>
-          <Text style={styles.subtitle}>We're working hard to bring you</Text>
-          <Text style={[styles.featureName, { color: '#2ecc71' }]}>Fixed Deposit Receipt Management</Text>
+          <Text style={styles.subtitle}>Get ready for powerful</Text>
+          <Text style={[styles.featureName, { color: '#f39c12' }]}>Expense Tracking & Analytics</Text>
           <Text style={styles.description}>
-            Track your FDR investments, maturity dates, and interest earnings all in one place.
+            Categorize spending, set budgets, and visualize your financial habits.
           </Text>
-          <View style={[styles.notificationContainer, { backgroundColor: '#e8f8f0' }]}>
-            <AntDesign name="notification" size={20} color="#2ecc71" />
-            <Text style={[styles.notificationText, { color: '#2ecc71' }]}>We'll notify you when it's ready</Text>
+          <View style={[styles.notificationContainer, { backgroundColor: '#fef6e9' }]}>
+            <MaterialIcons name="notifications-active" size={20} color="#f39c12" />
+            <Text style={[styles.notificationText, { color: '#f39c12' }]}>We'll alert you when it's available</Text>
           </View>
         </View>
       </View>
@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
   featureName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#4361ee',
+    color: '#f39c12',
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -82,16 +82,16 @@ const styles = StyleSheet.create({
   notificationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0f4ff',
+    backgroundColor: '#fef6e9',
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 8,
   },
   notificationText: {
     fontSize: 14,
-    color: '#4361ee',
+    color: '#f39c12',
     marginLeft: 8,
   },
 });
 
-export default FdrScreen;
+export default ExpenseScreen;

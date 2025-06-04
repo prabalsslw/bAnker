@@ -9,7 +9,7 @@ const AppHeader = ({ title, navigation, showBack = false }) => {
       <View style={styles.header}>
         <View style={styles.left}>
           {showBack ? (
-            <TouchableOpacity onPress={() => navigation.navigate('HomeTabs')}>
+            <TouchableOpacity onPress={() => navigation.goBack()}>
               <MaterialIcons name="arrow-back" size={24} color="#fff" />
             </TouchableOpacity>
           ) : null}

@@ -1,21 +1,3 @@
-// import React from 'react';
-// import { SafeAreaProvider } from 'react-native-safe-area-context';
-// import { StatusBar } from 'expo-status-bar';
-// import { View, ActivityIndicator } from 'react-native';
-// import AppNavigator from './src/navigation/AppNavigator';
-// import { AuthProvider } from './src/auth/AuthContext';
-
-// export default function App() {
-//   return (
-//     <SafeAreaProvider>
-//       <AuthProvider>
-//         <StatusBar barStyle="light-content" backgroundColor="#e2136e" />
-//         <AppNavigator />
-//       </AuthProvider>
-//     </SafeAreaProvider>
-//   );
-// }
-
 import React, { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -41,6 +23,7 @@ export default function App() {
 
   //   dropAndInitDB();
   // }, []);
+  //
   return (
     <SafeAreaProvider>
       <AuthProvider>
