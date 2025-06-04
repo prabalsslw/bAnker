@@ -120,10 +120,25 @@ const SavingsScreen = ({ navigation }) => {
     return valid;
   };
 
+  // const handleDateChange = (event, selectedDate) => {
+  //   setShowDatePicker(false);
+  //   if (selectedDate) {
+  //     const formattedDate = selectedDate.toISOString().split('T')[0];
+  //     if (isEditModalVisible) {
+  //       setEditingSavings({...editingSavings, [dateField]: formattedDate});
+  //     } else {
+  //       setNewSavings({...newSavings, [dateField]: formattedDate});
+  //     }
+  //   }
+  // };
   const handleDateChange = (event, selectedDate) => {
     setShowDatePicker(false);
     if (selectedDate) {
-      const formattedDate = selectedDate.toISOString().split('T')[0];
+      // Convert to Bangladesh time (UTC+6)
+      const bangladeshOffset = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
+      const localDate = new Date(selectedDate.getTime() + bangladeshOffset);
+      const formattedDate = localDate.toISOString().split('T')[0];
+      
       if (isEditModalVisible) {
         setEditingSavings({...editingSavings, [dateField]: formattedDate});
       } else {
@@ -507,7 +522,13 @@ const SavingsScreen = ({ navigation }) => {
 
             {showDatePicker && (
               <DateTimePicker
-                value={new Date()}
+                value={
+                  dateField === 'issueDate' && newSavings.issueDate 
+                    ? new Date(newSavings.issueDate + 'T00:00:00+06:00') 
+                    : dateField === 'matureDate' && newSavings.matureDate 
+                    ? new Date(newSavings.matureDate + 'T00:00:00+06:00')
+                    : new Date(new Date().getTime() + (6 * 60 * 60 * 1000)) // Current time in UTC+6
+                }
                 mode="date"
                 display="default"
                 onChange={handleDateChange}
