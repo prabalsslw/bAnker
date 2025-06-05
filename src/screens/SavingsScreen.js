@@ -1,6 +1,6 @@
 // SavingsScreen.js
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, FlatList, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, FlatList, Alert, RefreshControl } from 'react-native';
 import AppHeader from '../components/AppHeader';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -14,6 +14,7 @@ const SavingsScreen = ({ navigation }) => {
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [pin, setPin] = useState('');
   const [savingsToDelete, setSavingsToDelete] = useState(null);
   const { user } = useAuth();
@@ -47,12 +48,45 @@ const SavingsScreen = ({ navigation }) => {
   const loadSavings = async () => {
     try {
       const savings = await bankerDB.getSavingsList();
-      setSavingsList(savings);
+      
+      // Enhance savings with next unpaid payment date
+      const enhancedSavings = await Promise.all(savings.map(async (saving) => {
+        const payments = await bankerDB.getPaymentsBySavingsId(saving.savings_id);
+        const unpaidPayments = payments.filter(p => !p.is_paid);
+        const nextUnpaidDate = unpaidPayments.length > 0 
+          ? unpaidPayments[0].payment_date 
+          : null;
+        
+        return {
+          ...saving,
+          next_unpaid_date: nextUnpaidDate
+        };
+      }));
+      
+      // Sort by next unpaid date (earliest first), then by savings_id
+      enhancedSavings.sort((a, b) => {
+        if (a.next_unpaid_date && b.next_unpaid_date) {
+          return new Date(a.next_unpaid_date) - new Date(b.next_unpaid_date);
+        } else if (a.next_unpaid_date) {
+          return -1;
+        } else if (b.next_unpaid_date) {
+          return 1;
+        }
+        return a.savings_id.localeCompare(b.savings_id);
+      });
+      
+      setSavingsList(enhancedSavings);
     } catch (error) {
       console.error('Error loading savings:', error);
       showToast('error', 'Failed to load savings data');
     }
   };
+
+  const onRefresh = async () => {
+  setRefreshing(true);
+  await loadSavings();
+  setRefreshing(false);
+};
 
   const showToast = (type, text1, text2 = '') => {
     Toast.show({
@@ -371,6 +405,16 @@ const SavingsScreen = ({ navigation }) => {
         <Text style={styles.cardValue}>{item.mature_date}</Text>
       </View>
 
+      {/* Add the new row for next unpaid payment */}
+      {item.next_unpaid_date && (
+        <View style={styles.cardRow}>
+          <Text style={[styles.cardLabel, {color: '#e2136e'}]}>Next Payment Due:</Text>
+          <Text style={[styles.cardValue, {color: '#e2136e', fontWeight: 'bold'}]}>
+            {item.next_unpaid_date}
+          </Text>
+        </View>
+      )}
+
       <View style={styles.cardActions}>
         <TouchableOpacity 
           style={styles.actionButton}
@@ -412,20 +456,28 @@ const SavingsScreen = ({ navigation }) => {
 
           {/* Savings List or Empty State */}
           {savingsList.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Icon name="account-balance-wallet" size={120} color="#e0e0e0" style={styles.emptyImage} />
-              <Text style={styles.emptyText}>No Savings Found!</Text>
-              <Text style={styles.emptySubtext}>Start by adding your first savings</Text>
-            </View>
-          ) : (
-            <FlatList
-              data={savingsList}
-              renderItem={renderItem}
-              keyExtractor={item => item.id.toString()}
-              contentContainerStyle={styles.listContainer}
-              showsVerticalScrollIndicator={false}
-            />
-          )}
+          <View style={styles.emptyState}>
+            <Icon name="account-balance-wallet" size={120} color="#e0e0e0" style={styles.emptyImage} />
+            <Text style={styles.emptyText}>No Savings Found!</Text>
+            <Text style={styles.emptySubtext}>Start by adding your first savings</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={savingsList}
+            renderItem={renderItem}
+            keyExtractor={item => item.id.toString()}
+            contentContainerStyle={styles.listContainer}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={['#e2136e']}
+                tintColor="#e2136e"
+              />
+            }
+          />
+        )}
 
           {/* Add Button at Bottom */}
           <Animated.View 
